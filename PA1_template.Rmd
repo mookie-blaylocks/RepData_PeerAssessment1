@@ -8,18 +8,86 @@ output:
 
 ## Loading and preprocessing the data
 
-
+```{r, echo=TRUE}
+unzip("activity.zip")
+a <- read.csv("activity.csv")
+a$date <- as.Date(a$date)
+```
 
 ## What is mean total number of steps taken per day?
 
-
+```{r, echo=TRUE}
+library(dplyr)
+b <- group_by(a, date) %>%
+        summarize(sum(steps, na.rm=TRUE))
+names(b) <- c("date", "sum.steps")
+hist(b$sum.steps)
+mean(b$sum.steps)
+median(b$sum.steps)
+```
 
 ## What is the average daily activity pattern?
 
-
+```{r, echo=TRUE}
+c <- group_by(a, interval) %>%
+    summarize(mean(steps, na.rm=TRUE))
+plot(c, type="l")
+names(c) <- c("interval", "mean.steps")
+max(c$mean.steps)
+```
 
 ## Imputing missing values
+We will use the mean value for each 5-minute interval as replacment for NAs.
+```{r, echo=TRUE}
+sum(is.na(a))
+f <- function(s, i){
+    if (is.na(s)) {
+        return ((filter(c, interval == i))[[1,2]])
+    } else {
+        return (s)
+    }
+}
+d <- data.frame(steps=mapply(f, a$steps, a$interval),
+                date = a$date,
+                interval = a$interval)
+e <- group_by(d, date) %>%
+    summarize(sum(steps, na.rm=TRUE))
+names(e) = c("date", "sum.steps")
+hist(e$sum.steps)
+mean(e$sum.steps)
+median(e$sum.steps)
+```
 
+Difference between the means and medians of the original data and that of the
+data including the imputed values.
 
+```{r, echo=TRUE}
+mean(b$sum.steps) - mean(e$sum.steps)
+median(b$sum.steps) - median(e$sum.steps)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r, echo=TRUE}
+g <- function(d) {
+    if (weekdays(d) == "Saturday" | weekdays(d) == "Sunday") {
+        return ("weekend")
+    } else {
+        return ("weekday")
+    }
+}
+a$weekday.or.weekend <- sapply(a$date, g)
+weekday <- a %>%
+    filter(weekday.or.weekend == "weekday") %>%
+    group_by(interval) %>%
+    summarize(sum(steps, na.rm=TRUE))
+names(weekday) <- c("interval", "steps")
+weekend <- a %>%
+    filter(weekday.or.weekend == "weekend") %>%
+    group_by(interval) %>%
+    summarize(sum(steps, na.rm=TRUE))
+names(weekend) <- c("interval", "steps")
+par(mfcol=c(2,1))
+plot(weekday$interval, weekday$steps, type="l", xlab="time interval", ylab="steps", main="weekday")
+plot(weekend$interval, weekend$steps, type="l", xlab="time interval", ylab="steps", main="weekend")
+```
